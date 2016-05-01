@@ -47,5 +47,15 @@ describe('Typed', () => {
             const methodParam = 'something';
             (TypedTestClass.staticMethod(methodParam)).should.be.equal(methodParam);
         });
+        it('should throws TypeError when invokes with invalid type of param', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const methodParam = {};
+            (() => { TypedTestClass.staticMethod(methodParam); }).should.throw(TypeError);
+        });
+        it('should throws RangeError when invokes with invalid count of param', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const methodParam = 'Anton';
+            (() => { TypedTestClass.staticMethod(methodParam, methodParam); }).should.throw(RangeError);
+        });
     });
 });

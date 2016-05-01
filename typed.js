@@ -66,14 +66,23 @@ class TypedProxy {
             const descOfProp = Object.getOwnPropertyDescriptor(typedClass, property);
             return (descOfProp.value instanceof Function) && descOfProp.writable && descOfProp.configurable;
         });
+
+        const setOfStaticMethodsAndThemProxies = new Map();
+
         staticMethodOfTypedClass.forEach((methodName) => {
             const handler = {
                 apply(target, thisArgument, argList){
-
+                    typeTester(target, ...argList);
+                    return target.apply(thisArgument, argList);
                 }
             };
-            const proxy = new Proxy();
+            const proxy = new Proxy(typedClass[methodName], handler);
+            setOfStaticMethodsAndThemProxies.set(methodName, proxy);
         });
+        /*
+            Define new() and get() handler for Class
+             In get handler is invoking a 'setOfStaticMethodsAndThemProxies' proxy if it static method
+         */
         const handler = {
             construct(target, argList) {
                 /*
@@ -95,10 +104,11 @@ class TypedProxy {
                 /*
                 static methods
                  */
-                if(staticMethodOfTypedClass.includes(prop)){
-                    typeTester(target[prop])
+                if(setOfStaticMethodsAndThemProxies.has(prop)){
+                    return setOfStaticMethodsAndThemProxies.get(prop);
+                } else {
+                    return target[prop];
                 }
-                return target[prop];
             }
         };
         const proxy = new Proxy(typedClass, handler);
