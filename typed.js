@@ -21,6 +21,18 @@ const types = {
     },
     'uInt' : (value) => {
 
+        const typeOfValue = {}.toString.call(value).slice(8, -1);
+
+        if(typeOfValue !== 'Number'){
+            throw new TypeError(`uInt parameter must be Number instance, not ${typeOfValue}`);
+        }
+        if(!Number.isSafeInteger(value)) {
+            throw new TypeError(`uInt parameter must be safe integer value`);
+        }
+        if(value < 0) {
+            throw new TypeError(`uInt parameter must be more than 0, not ${value}`);
+        }
+
     }
 };
 
@@ -115,6 +127,10 @@ class TypedProxy {
                         } else {
                             return target[prop];
                         }
+                    },
+                    set(target, prop, value){
+
+                        
                     }
                 };
                 const proxyInstance = new Proxy(instance, instanceHandler);
