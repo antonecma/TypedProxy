@@ -13,11 +13,14 @@ function getFunctionArgumentsDescribe(func) {
 const types = {
     'str' : (value) => {
 
-        let typeOfValue = {}.toString.call(value).slice(8, -1);
+        const typeOfValue = {}.toString.call(value).slice(8, -1);
 
         if(typeOfValue !== 'String'){
             throw new TypeError(`str parameter must be String instance, not ${typeOfValue}`);
         }
+    },
+    'uInt' : (value) => {
+
     }
 };
 
@@ -50,6 +53,32 @@ const typeTester = (functionName, ...passedArgs) => {
         return true;
     }
 };
+const mapOfAllOwnWritableAndConfigurableMethods = (obj) => {
+    const staticMethodOfTypedClass = Object.getOwnPropertyNames(obj).filter((property) => {
+        const descOfProp = Object.getOwnPropertyDescriptor(obj, property);
+        return (descOfProp.value instanceof Function) && descOfProp.writable && descOfProp.configurable;
+    });
+    return staticMethodOfTypedClass;
+};
+const mapApplyHandler = (instance, methodNames, ...excludeMethods) => {
+
+    const setOfStaticMethodsAndThemProxies = new Map();
+
+    methodNames.forEach((methodName) => {
+        if(!excludeMethods.includes(methodName)) {
+            const handler = {
+                apply(target, thisArgument, argList){
+                    typeTester(target, ...argList);
+                    return target.apply(thisArgument, argList);
+                }
+            };
+            const proxy = new Proxy(instance[methodName], handler);
+            setOfStaticMethodsAndThemProxies.set(methodName, proxy);
+        }
+    });
+
+    return setOfStaticMethodsAndThemProxies;
+};
 
 class TypedProxy {
     constructor(typedClass) {
@@ -62,23 +91,9 @@ class TypedProxy {
         /*
         Determinate static methods
          */
-        const staticMethodOfTypedClass = Object.getOwnPropertyNames(typedClass).filter((property) => {
-            const descOfProp = Object.getOwnPropertyDescriptor(typedClass, property);
-            return (descOfProp.value instanceof Function) && descOfProp.writable && descOfProp.configurable;
-        });
+        const staticMethodOfTypedClass =  mapOfAllOwnWritableAndConfigurableMethods(typedClass);
 
-        const setOfStaticMethodsAndThemProxies = new Map();
-
-        staticMethodOfTypedClass.forEach((methodName) => {
-            const handler = {
-                apply(target, thisArgument, argList){
-                    typeTester(target, ...argList);
-                    return target.apply(thisArgument, argList);
-                }
-            };
-            const proxy = new Proxy(typedClass[methodName], handler);
-            setOfStaticMethodsAndThemProxies.set(methodName, proxy);
-        });
+        const setOfStaticMethodsAndThemProxies = mapApplyHandler(typedClass, staticMethodOfTypedClass);
         /*
             Define new() and get() handler for Class
              In get handler is invoking a 'setOfStaticMethodsAndThemProxies' proxy if it static method
@@ -91,12 +106,18 @@ class TypedProxy {
                   */
                 typeTester(typedClass, ...argList);
                 const instance = new target(...argList);
-                const instanceProxyHandler = {
-                    get(target, property) {
-                        return target[property];
+                const methodsOfTypeInstance =  mapOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
+                const mapOfMethodsAndThemProxies = mapApplyHandler(instance, methodsOfTypeInstance, 'constructor');
+                const instanceHandler = {
+                    get(target, prop){
+                        if(mapOfMethodsAndThemProxies.has(prop)){
+                            return mapOfMethodsAndThemProxies.get(prop);
+                        } else {
+                            return target[prop];
+                        }
                     }
                 };
-                const proxyInstance = new Proxy(instance, instanceProxyHandler);
+                const proxyInstance = new Proxy(instance, instanceHandler);
                 return proxyInstance;
 
             },
