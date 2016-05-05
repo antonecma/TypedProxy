@@ -8,8 +8,7 @@ function getFunctionArgumentsDescribe(func) {
         .replace(/}+/g,'') // strip any ES6 defaults
         .replace(/=[^,]+/g,'') // strip any ES6 defaults
         .split(',').filter(Boolean); // split & filter [""]
-};
-
+}
 const types = {
     'str' : (value) => {
 
@@ -60,17 +59,25 @@ const typeTester = (functionName, ...passedArgs) => {
             if(!typeDefinedInTypesObject) {
                 throw new RangeError(`can not find type of ${typesOfParams[i]} value in [${allTypes}]`);
             }
-        };
-
+        }
         return true;
     }
 };
-const mapOfAllOwnWritableAndConfigurableMethods = (obj) => {
-    const staticMethodOfTypedClass = Object.getOwnPropertyNames(obj).filter((property) => {
+const mapOfAllOwnSetters = (obj) => {
+    const mapOfSetters = new Map();
+    Object.getOwnPropertyNames(obj).forEach((property) => {
+        const descOfProp = Object.getOwnPropertyDescriptor(obj, property);
+         if(descOfProp.set && descOfProp.configurable && (!descOfProp.value)){
+             mapOfSetters.set(property, descOfProp.set);
+         }
+    });
+    return mapOfSetters;
+};
+const arrOfAllOwnWritableAndConfigurableMethods = (obj) => {
+    return Object.getOwnPropertyNames(obj).filter((property) => {
         const descOfProp = Object.getOwnPropertyDescriptor(obj, property);
         return (descOfProp.value instanceof Function) && descOfProp.writable && descOfProp.configurable;
     });
-    return staticMethodOfTypedClass;
 };
 const mapApplyHandler = (instance, methodNames, ...excludeMethods) => {
 
@@ -103,13 +110,14 @@ class TypedProxy {
         /*
         Determinate static methods
          */
-        const staticMethodOfTypedClass =  mapOfAllOwnWritableAndConfigurableMethods(typedClass);
+        const staticMethodOfTypedClass =  arrOfAllOwnWritableAndConfigurableMethods(typedClass);
 
         const setOfStaticMethodsAndThemProxies = mapApplyHandler(typedClass, staticMethodOfTypedClass);
         /*
             Define new() and get() handler for Class
              In get handler is invoking a 'setOfStaticMethodsAndThemProxies' proxy if it static method
          */
+        const mapOfStaticSetter = mapOfAllOwnSetters(typedClass);
         const handler = {
             construct(target, argList) {
                 /*
@@ -118,7 +126,8 @@ class TypedProxy {
                   */
                 typeTester(typedClass, ...argList);
                 const instance = new target(...argList);
-                const methodsOfTypeInstance =  mapOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
+                const methodsOfTypeInstance =  arrOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
+                const mapSettersOfInstance = mapOfAllOwnSetters(Object.getPrototypeOf(instance));
                 const mapOfMethodsAndThemProxies = mapApplyHandler(instance, methodsOfTypeInstance, 'constructor');
                 const instanceHandler = {
                     get(target, prop){
@@ -129,12 +138,14 @@ class TypedProxy {
                         }
                     },
                     set(target, prop, value){
-
-                        
+                        if(mapSettersOfInstance.has(prop)){
+                            typeTester(mapSettersOfInstance.get(prop), value);
+                        }
+                        target[prop] = value;
+                        return true;
                     }
                 };
-                const proxyInstance = new Proxy(instance, instanceHandler);
-                return proxyInstance;
+                return new Proxy(instance, instanceHandler);
 
             },
             get(target, prop){
@@ -146,10 +157,16 @@ class TypedProxy {
                 } else {
                     return target[prop];
                 }
+            },
+            set(target, prop, value){
+                if(mapOfStaticSetter.has(prop)){
+                    typeTester(mapOfStaticSetter.get(prop), value);
+                }
+                target[prop] = value;
+                return true;
             }
         };
-        const proxy = new Proxy(typedClass, handler);
-        return proxy;
+        return new Proxy(typedClass, handler);
     }
 }
 module.exports =  TypedProxy;

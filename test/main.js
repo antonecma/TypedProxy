@@ -20,6 +20,17 @@ class TestClass {
     static staticMethod(strSomeStaticString) {
         return strSomeStaticString;
     }
+    static get age(){
+        if(this._age){
+            return this._age;
+        } else {
+            return 'Age not defined';
+        }
+    }
+    static set age(uIntValue){
+        this._age = uIntValue;
+        return true;
+    }
     get name(){
         if(this._name){
             return this._name;
@@ -29,6 +40,7 @@ class TestClass {
     }
     set name(strName){
         this._name = strName;
+        return true;
     }
 }
 
@@ -73,6 +85,19 @@ describe('Typed', () => {
             const TypedTestClass = new Typed(TestClass);
             const methodParam = 'Anton';
             (() => { TypedTestClass.staticMethod(methodParam, methodParam); }).should.throw(RangeError);
+        });
+    });
+    describe('setter', () => {
+        it('should throw TypeError when set invalid property type', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const staticProperty = 'Anton';
+            (() => { TypedTestClass.age = staticProperty; }).should.throw(TypeError);
+        });
+        it('should set value of property by setter', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const staticProperty = 30;
+            TypedTestClass.age = staticProperty;
+            (TypedTestClass.age).should.be.eql(staticProperty);
         });
     });
     describe('instance method with str param', () => {
@@ -167,17 +192,15 @@ describe('Typed', () => {
             const constructorParam = 'Anton';
             const typedInstance = new TypedTestClass(constructorParam);
             const invalidProperty = 1;
-            typedInstance.name = invalidProperty;
-            console.log(typedInstance.name);
             (() => { typedInstance.name = invalidProperty; }).should.throw(TypeError);
         });
-        it('should invoke instance method', () => {
+        it('should set value of instance by setter', () => {
             const TypedTestClass = new Typed(TestClass);
             const constructorParam = 'Anton';
             const typedInstance = new TypedTestClass(constructorParam);
-            const instanceMethodParamFirst = 2;
-            const instanceMethodParamSecond = 'Anton';
-            (typedInstance.repeatSomeString(instanceMethodParamFirst, instanceMethodParamSecond)).should.be.eql(instanceMethodParamSecond.repeat(instanceMethodParamFirst));
+            const typedInstanceProperty = 'Anton';
+            typedInstance.name = typedInstanceProperty;
+            (typedInstance.name).should.be.eql(typedInstanceProperty);
         });
     });
 });
