@@ -1,6 +1,9 @@
 'use strict';
 
-function getFunctionArgumentsDescribe(func) {
+const getFunctionArgumentsDescribe = (func) => {
+    /*
+    snatch from http://stackoverflow.com/a/31194949
+    */
     return (func+'').replace(/\s+/g,'')
         .replace(/[/][*][^/*]*[*][/]/g,'') // strip simple comments
         .split('){',1)[0].replace(/^[^(]*[(]/,'') // extract the parameters
@@ -8,8 +11,8 @@ function getFunctionArgumentsDescribe(func) {
         .replace(/}+/g,'') // strip any ES6 defaults
         .replace(/=[^,]+/g,'') // strip any ES6 defaults
         .split(',').filter(Boolean); // split & filter [""]
-}
-const types = {
+};
+const defaultTypes = {
     'str' : (value) => {
 
         const typeOfValue = {}.toString.call(value).slice(8, -1);
@@ -34,8 +37,7 @@ const types = {
 
     }
 };
-
-const typeTester = (functionName, ...passedArgs) => {
+const typeTesterDefault = (types, functionName, ...passedArgs) => {
     //compare length of function passed args and length of expected args
     const argsLength = passedArgs.length;
     const typesOfParams = getFunctionArgumentsDescribe(functionName);
@@ -79,28 +81,8 @@ const arrOfAllOwnWritableAndConfigurableMethods = (obj) => {
         return (descOfProp.value instanceof Function) && descOfProp.writable && descOfProp.configurable;
     });
 };
-const mapApplyHandler = (instance, methodNames, ...excludeMethods) => {
-
-    const setOfStaticMethodsAndThemProxies = new Map();
-
-    methodNames.forEach((methodName) => {
-        if(!excludeMethods.includes(methodName)) {
-            const handler = {
-                apply(target, thisArgument, argList){
-                    typeTester(target, ...argList);
-                    return target.apply(thisArgument, argList);
-                }
-            };
-            const proxy = new Proxy(instance[methodName], handler);
-            setOfStaticMethodsAndThemProxies.set(methodName, proxy);
-        }
-    });
-
-    return setOfStaticMethodsAndThemProxies;
-};
-
 class TypedProxy {
-    constructor(typedClass) {
+    constructor(typedClass, types = defaultTypes, typeTester = typeTesterDefault) {
         /*
         Work with Class only
          */
@@ -110,6 +92,25 @@ class TypedProxy {
         /*
         Determinate static methods
          */
+        const mapApplyHandler = (instance, methodNames, ...excludeMethods) => {
+
+            const setOfStaticMethodsAndThemProxies = new Map();
+
+            methodNames.forEach((methodName) => {
+                if(!excludeMethods.includes(methodName)) {
+                    const handler = {
+                        apply(target, thisArgument, argList){
+                            typeTester(types, target, ...argList);
+                            return target.apply(thisArgument, argList);
+                        }
+                    };
+                    const proxy = new Proxy(instance[methodName], handler);
+                    setOfStaticMethodsAndThemProxies.set(methodName, proxy);
+                }
+            });
+
+            return setOfStaticMethodsAndThemProxies;
+        };
         const staticMethodOfTypedClass =  arrOfAllOwnWritableAndConfigurableMethods(typedClass);
 
         const setOfStaticMethodsAndThemProxies = mapApplyHandler(typedClass, staticMethodOfTypedClass);
@@ -122,9 +123,9 @@ class TypedProxy {
             construct(target, argList) {
                 /*
                     Interception for 'new' statement
-                    Here we checks argList with typeTester()
+                    Here we checks argList with typeTester(types, )
                   */
-                typeTester(typedClass, ...argList);
+                typeTester(types, typedClass, ...argList);
                 const instance = new target(...argList);
                 const methodsOfTypeInstance =  arrOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
                 const mapSettersOfInstance = mapOfAllOwnSetters(Object.getPrototypeOf(instance));
@@ -139,7 +140,7 @@ class TypedProxy {
                     },
                     set(target, prop, value){
                         if(mapSettersOfInstance.has(prop)){
-                            typeTester(mapSettersOfInstance.get(prop), value);
+                            typeTester(types, mapSettersOfInstance.get(prop), value);
                         }
                         target[prop] = value;
                         return true;
@@ -160,7 +161,7 @@ class TypedProxy {
             },
             set(target, prop, value){
                 if(mapOfStaticSetter.has(prop)){
-                    typeTester(mapOfStaticSetter.get(prop), value);
+                    typeTester(types, mapOfStaticSetter.get(prop), value);
                 }
                 target[prop] = value;
                 return true;
