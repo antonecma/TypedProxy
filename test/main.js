@@ -42,9 +42,60 @@ class TestClass {
         this._name = strName;
         return true;
     }
-}
+};
+class Shape {
+    get color() {
+        if(this._color){
+            return this._color;
+        } else {
+            return 'color not defined';
+        }
+    }
+    set color(strColorName) {
+        this._color = strColorName;
+        return true;
+    }
+    shapeRepeatStr(strSomeString, uIntTimes){
+        return strSomeString.repeat(uIntTimes);
+    }
+};
 
-describe('Typed', () => {
+function extendedClass(parentClass) {
+    const extClass = class Circle extends parentClass {
+        constructor(uIntRadius) {
+            super();
+            this.radius = uIntRadius;
+            Circle.circlesMade++;
+        };
+
+        static draw(strCanvas) {
+            return `I will draw this in ${strCanvas}`;
+        };
+
+        static get circlesMade() {
+            return !this._count ? 0 : this._count;
+        };
+        static set circlesMade(uIntVal) {
+            this._count = uIntVal;
+            return true;
+        };
+
+        area() {
+            return Math.pow(this.radius, 2) * Math.PI;
+        };
+
+        get radius() {
+            return this._radius;
+        };
+        set radius(uIntRadius) {
+            this._radius = uIntRadius;
+            return true;
+        };
+    };
+    return extClass;
+};
+
+describe('TestClass', () => {
     describe('constructor', () => {
         it('should throw type error when invoke without typedClass as first param', ()=>{
             (() => { new Typed(); }).should.throw();
@@ -203,4 +254,73 @@ describe('Typed', () => {
             (typedInstance.name).should.be.eql(typedInstanceProperty);
         });
     });
+});
+describe('Inheritance', () => {
+    describe('extends', () => {
+        it('should create new instance of extended class', () => {
+        //create new typed Child class
+            const childTypedClass = new Typed(extendedClass(Shape));
+        //create new instance of typed child class
+            const constructorParam = 1;
+            new childTypedClass(constructorParam);
+        });
+
+     });
+    describe('parent access', () => {
+        describe('methods', () => {
+            it('should throw RangeError when requested with a bad length of param', () => {
+                //create new typed Child class
+                const childTypedClass = new Typed(extendedClass(Shape));
+                //create new instance of typed child class
+                const constructorParam = 1;
+                const childInstance = new childTypedClass(constructorParam);
+                const methodParamFirst = 'Anton';
+                const methodParamSecond = 2;
+                (() => { childInstance.shapeRepeatStr(methodParamFirst); }).should.throw(RangeError);
+
+            });
+            it('should throw TypeError when requested with a bad type of param', () => {
+                //create new typed Child class
+                const childTypedClass = new Typed(extendedClass(Shape));
+                //create new instance of typed child class
+                const constructorParam = 1;
+                const childInstance = new childTypedClass(constructorParam);
+                const methodParamFirst = 'Anton';
+                const methodParamSecond = 2;
+                (() => { childInstance.shapeRepeatStr(methodParamSecond, methodParamFirst); }).should.throw(TypeError);
+            });
+            it('should invoke parent method', () => {
+                //create new typed Child class
+                const childTypedClass = new Typed(extendedClass(Shape));
+                //create new instance of typed child class
+                const constructorParam = 1;
+                const childInstance = new childTypedClass(constructorParam);
+                const methodParamFirst = 'Anton';
+                const methodParamSecond = 2;
+                (childInstance.shapeRepeatStr(methodParamFirst, methodParamSecond)).should.be.eql(methodParamFirst.repeat(methodParamSecond));
+            });
+        });
+        describe('setter', () => {
+            it('should throw TypeError when set invalid property type', () => {
+                //create new typed Child class
+                const childTypedClass = new Typed(extendedClass(Shape));
+                //create new instance of typed child class
+                const constructorParam = 1;
+                const childInstance = new childTypedClass(constructorParam);
+                const propertyValue = 1;
+                (() => { childInstance.color = propertyValue ;}).should.throw(TypeError);
+            });
+            it('should set value of property by setter', () => {
+                //create new typed Child class
+                const childTypedClass = new Typed(extendedClass(Shape));
+                //create new instance of typed child class
+                const constructorParam = 1;
+                const childInstance = new childTypedClass(constructorParam);
+                const propertyValue = 'red';
+                childInstance.color = propertyValue ;
+                (childInstance.color).should.be.eql(propertyValue);
+            });
+        });
+    });
+
 });

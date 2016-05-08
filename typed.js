@@ -2,36 +2,36 @@
 
 const getFunctionArgumentsDescribe = (func) => {
     /*
-    snatch from http://stackoverflow.com/a/31194949
-    */
-    return (func+'').replace(/\s+/g,'')
-        .replace(/[/][*][^/*]*[*][/]/g,'') // strip simple comments
-        .split('){',1)[0].replace(/^[^(]*[(]/,'') // extract the parameters
-        .replace(/{+/g,'') // strip any ES6 defaults
-        .replace(/}+/g,'') // strip any ES6 defaults
-        .replace(/=[^,]+/g,'') // strip any ES6 defaults
+     snatch from http://stackoverflow.com/a/31194949
+     */
+    return (Function.prototype.toString.call(func) + '').replace(/\s+/g, '')
+        .replace(/[/][*][^/*]*[*][/]/g, '') // strip simple comments
+        .split('){', 1)[0].replace(/^[^(]*[(]/, '') // extract the parameters
+        .replace(/{+/g, '') // strip any ES6 defaults
+        .replace(/}+/g, '') // strip any ES6 defaults
+        .replace(/=[^,]+/g, '') // strip any ES6 defaults
         .split(',').filter(Boolean); // split & filter [""]
 };
 const defaultTypes = {
-    'str' : (value) => {
+    'str': (value) => {
 
         const typeOfValue = {}.toString.call(value).slice(8, -1);
 
-        if(typeOfValue !== 'String'){
+        if (typeOfValue !== 'String') {
             throw new TypeError(`str parameter must be String instance, not ${typeOfValue}`);
         }
     },
-    'uInt' : (value) => {
+    'uInt': (value) => {
 
         const typeOfValue = {}.toString.call(value).slice(8, -1);
 
-        if(typeOfValue !== 'Number'){
+        if (typeOfValue !== 'Number') {
             throw new TypeError(`uInt parameter must be Number instance, not ${typeOfValue}`);
         }
-        if(!Number.isSafeInteger(value)) {
+        if (!Number.isSafeInteger(value)) {
             throw new TypeError(`uInt parameter must be safe integer value`);
         }
-        if(value < 0) {
+        if (value < 0) {
             throw new TypeError(`uInt parameter must be more than 0, not ${value}`);
         }
 
@@ -42,23 +42,23 @@ const typeTesterDefault = (types, functionName, ...passedArgs) => {
     const argsLength = passedArgs.length;
     const typesOfParams = getFunctionArgumentsDescribe(functionName);
 
-    if(argsLength !== typesOfParams.length) {
+    if (argsLength !== typesOfParams.length) {
         throw new RangeError('amount of parameters is invalid');
     } else {
 
         const allTypes = Object.keys(types);
         const allTypesLength = allTypes.length;
 
-        for(let i = 0; i < argsLength; i++){
+        for (let i = 0; i < argsLength; i++) {
             let typeDefinedInTypesObject = false;
-            for(let j = 0; j < allTypesLength; j++){
-                if(typesOfParams[i].startsWith(allTypes[j])){
+            for (let j = 0; j < allTypesLength; j++) {
+                if (typesOfParams[i].startsWith(allTypes[j])) {
                     typeDefinedInTypesObject = true;
                     types[allTypes[j]](passedArgs[i]);
                     break;
                 }
             }
-            if(!typeDefinedInTypesObject) {
+            if (!typeDefinedInTypesObject) {
                 throw new RangeError(`can not find type of ${typesOfParams[i]} value in [${allTypes}]`);
             }
         }
@@ -66,13 +66,31 @@ const typeTesterDefault = (types, functionName, ...passedArgs) => {
     }
 };
 const mapOfAllOwnSetters = (obj) => {
+    /*
+     get prototype chain
+     */
     const mapOfSetters = new Map();
-    Object.getOwnPropertyNames(obj).forEach((property) => {
-        const descOfProp = Object.getOwnPropertyDescriptor(obj, property);
-         if(descOfProp.set && descOfProp.configurable && (!descOfProp.value)){
-             mapOfSetters.set(property, descOfProp.set);
-         }
-    });
+    const excludeConstructors = [
+        ({}).constructor,
+        (Number()).constructor,
+        (String()).constructor,
+        (new Function()).constructor
+    ];
+    const protoChain = function protoChain(obj){
+        const proto = Object.getPrototypeOf(obj);
+        Object.getOwnPropertyNames(obj).forEach((property) => {
+            const descOfProp = Object.getOwnPropertyDescriptor(obj, property);
+            if (descOfProp.set && descOfProp.configurable && (!descOfProp.value)) {
+                if(!mapOfSetters.has(property)){
+                    mapOfSetters.set(property, descOfProp.set);
+                }
+            }
+        });
+        if(!excludeConstructors.includes(proto.constructor)){
+            protoChain(proto);
+        }
+    };
+    protoChain(obj);
     return mapOfSetters;
 };
 const arrOfAllOwnWritableAndConfigurableMethods = (obj) => {
@@ -84,62 +102,72 @@ const arrOfAllOwnWritableAndConfigurableMethods = (obj) => {
 class TypedProxy {
     constructor(typedClass, types = defaultTypes, typeTester = typeTesterDefault) {
         /*
-        Work with Class only
+         Work with Class only
          */
-        if(! (typedClass instanceof Function)){
+        if (!(typedClass instanceof Function)) {
             throw new TypeError('typedClass must be a Function instance');
         }
         /*
-        Determinate static methods
+         Determinate static methods
          */
+        const createApplyProxy = (instance, methodName) => {
+            const handler = {
+                apply(target, thisArgument, argList){
+                    typeTester(types, target, ...argList);
+                    return target.apply(thisArgument, argList);
+                }
+            };
+            return new Proxy(instance[methodName], handler);
+        };
         const mapApplyHandler = (instance, methodNames, ...excludeMethods) => {
+
 
             const setOfStaticMethodsAndThemProxies = new Map();
 
             methodNames.forEach((methodName) => {
-                if(!excludeMethods.includes(methodName)) {
-                    const handler = {
-                        apply(target, thisArgument, argList){
-                            typeTester(types, target, ...argList);
-                            return target.apply(thisArgument, argList);
-                        }
-                    };
-                    const proxy = new Proxy(instance[methodName], handler);
-                    setOfStaticMethodsAndThemProxies.set(methodName, proxy);
+                if (!excludeMethods.includes(methodName)) {
+                    setOfStaticMethodsAndThemProxies.set(methodName, createApplyProxy(instance, methodName));
                 }
             });
 
             return setOfStaticMethodsAndThemProxies;
         };
-        const staticMethodOfTypedClass =  arrOfAllOwnWritableAndConfigurableMethods(typedClass);
+        const staticMethodOfTypedClass = arrOfAllOwnWritableAndConfigurableMethods(typedClass);
 
         const setOfStaticMethodsAndThemProxies = mapApplyHandler(typedClass, staticMethodOfTypedClass);
-        /*
-            Define new() and get() handler for Class
-             In get handler is invoking a 'setOfStaticMethodsAndThemProxies' proxy if it static method
-         */
+
         const mapOfStaticSetter = mapOfAllOwnSetters(typedClass);
+
         const handler = {
             construct(target, argList) {
                 /*
-                    Interception for 'new' statement
-                    Here we checks argList with typeTester(types, )
-                  */
+                 Interception for 'new' statement
+                 Here we checks argList with typeTester
+                 */
                 typeTester(types, typedClass, ...argList);
                 const instance = new target(...argList);
-                const methodsOfTypeInstance =  arrOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
-                const mapSettersOfInstance = mapOfAllOwnSetters(Object.getPrototypeOf(instance));
-                const mapOfMethodsAndThemProxies = mapApplyHandler(instance, methodsOfTypeInstance, 'constructor');
+                const methodsOfTypeInstance = arrOfAllOwnWritableAndConfigurableMethods(Object.getPrototypeOf(instance));
+                const mapSettersOfInstance = mapOfAllOwnSetters(instance);
+                const excludeMethods = ['constructor'];
+                //TODO [Symbol.someSymbol] does not have place in map below
+                const mapOfMethodsAndThemProxies = mapApplyHandler(instance, methodsOfTypeInstance, ...excludeMethods);
                 const instanceHandler = {
                     get(target, prop){
-                        if(mapOfMethodsAndThemProxies.has(prop)){
+                        if(!excludeMethods.includes(prop)){
+                            if (!mapOfMethodsAndThemProxies.has(prop)) {
+                                if(target[prop] instanceof Function){
+                                    mapOfMethodsAndThemProxies.set(prop, createApplyProxy(target, prop));
+                                } else {
+                                    return target[prop];
+                                }
+                            }
                             return mapOfMethodsAndThemProxies.get(prop);
                         } else {
                             return target[prop];
                         }
                     },
                     set(target, prop, value){
-                        if(mapSettersOfInstance.has(prop)){
+                        if (mapSettersOfInstance.has(prop)) {
                             typeTester(types, mapSettersOfInstance.get(prop), value);
                         }
                         target[prop] = value;
@@ -151,16 +179,16 @@ class TypedProxy {
             },
             get(target, prop){
                 /*
-                static methods
+                 static methods
                  */
-                if(setOfStaticMethodsAndThemProxies.has(prop)){
+                if (setOfStaticMethodsAndThemProxies.has(prop)) {
                     return setOfStaticMethodsAndThemProxies.get(prop);
                 } else {
                     return target[prop];
                 }
             },
             set(target, prop, value){
-                if(mapOfStaticSetter.has(prop)){
+                if (mapOfStaticSetter.has(prop)) {
                     typeTester(types, mapOfStaticSetter.get(prop), value);
                 }
                 target[prop] = value;
@@ -170,5 +198,5 @@ class TypedProxy {
         return new Proxy(typedClass, handler);
     }
 }
-module.exports =  TypedProxy;
+module.exports = TypedProxy;
 
