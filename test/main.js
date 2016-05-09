@@ -3,12 +3,15 @@
 const should = require('should');
 const assert = require('assert');
 const Typed = require('../typed.js');
-
+const symbolStrMethod = Symbol();
 class TestClass {
     constructor(strName){
         this.soname = strName;
     }
     saySomething(strSomeString){
+        return strSomeString;
+    }
+    [symbolStrMethod](strSomeString){
         return strSomeString;
     }
     calcSomething(uIntSomeValue){
@@ -58,9 +61,13 @@ class Shape {
     shapeRepeatStr(strSomeString, uIntTimes){
         return strSomeString.repeat(uIntTimes);
     }
+    [symbolStrMethod](strSomeString){
+        return strSomeString;
+    }
 };
 
 function extendedClass(parentClass) {
+    //stolen from mdn : https://hacks.mozilla.org/2015/07/es6-in-depth-classes/
     const extClass = class Circle extends parentClass {
         constructor(uIntRadius) {
             super();
@@ -95,7 +102,7 @@ function extendedClass(parentClass) {
     return extClass;
 };
 
-describe('TestClass', () => {
+describe('Class', () => {
     describe('constructor', () => {
         it('should throw type error when invoke without typedClass as first param', ()=>{
             (() => { new Typed(); }).should.throw();
@@ -254,6 +261,29 @@ describe('TestClass', () => {
             (typedInstance.name).should.be.eql(typedInstanceProperty);
         });
     });
+    describe('instance symbol method', () => {
+        it('should throw RangeError when requested with a bad length of param', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const constructorParam = 'Anton';
+            const typedInstance = new TypedTestClass(constructorParam);
+            const instanceMethodParam = 'Anton';
+            (() => { typedInstance[symbolStrMethod](instanceMethodParam, instanceMethodParam); }).should.throw(RangeError);
+        });
+        it('should throw TypeError when requested with a bad type of param', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const constructorParam = 'Anton';
+            const typedInstance = new TypedTestClass(constructorParam);
+            const instanceMethodParam = 1;
+            (() => { typedInstance[symbolStrMethod](instanceMethodParam); }).should.throw(TypeError);
+        });
+        it('should invoke instance method', () => {
+            const TypedTestClass = new Typed(TestClass);
+            const constructorParam = 'Anton';
+            const typedInstance = new TypedTestClass(constructorParam);
+            const instanceMethodParam = 'some string';
+            (typedInstance[symbolStrMethod](instanceMethodParam)).should.be.eql(instanceMethodParam);
+        });
+    });
 });
 describe('Inheritance', () => {
     describe('extends', () => {
@@ -298,6 +328,35 @@ describe('Inheritance', () => {
                 const methodParamFirst = 'Anton';
                 const methodParamSecond = 2;
                 (childInstance.shapeRepeatStr(methodParamFirst, methodParamSecond)).should.be.eql(methodParamFirst.repeat(methodParamSecond));
+            });
+            describe('symbol method', () => {
+                it('should throw RangeError when requested with a bad length of param', () => {
+                    //create new typed Child class
+                    const childTypedClass = new Typed(extendedClass(Shape));
+                    //create new instance of typed child class
+                    const constructorParam = 1;
+                    const childInstance = new childTypedClass(constructorParam);
+                    const methodParam = 'Anton';
+                    (() => { childInstance[symbolStrMethod](methodParam, methodParam); }).should.throw(RangeError);
+                });
+                it('should throw TypeError when requested with a bad type of param', () => {
+                    //create new typed Child class
+                    const childTypedClass = new Typed(extendedClass(Shape));
+                    //create new instance of typed child class
+                    const constructorParam = 1;
+                    const childInstance = new childTypedClass(constructorParam);
+                    const methodParam = 1;
+                    (() => { childInstance[symbolStrMethod](methodParam); }).should.throw(TypeError);
+                });
+                it('should invoke instance method', () => {
+                    //create new typed Child class
+                    const childTypedClass = new Typed(extendedClass(Shape));
+                    //create new instance of typed child class
+                    const constructorParam = 1;
+                    const childInstance = new childTypedClass(constructorParam);
+                    const methodParam = 'Anton';
+                    (childInstance[symbolStrMethod](methodParam)).should.be.eql(methodParam);
+                });
             });
         });
         describe('setter', () => {
