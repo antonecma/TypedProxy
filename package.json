@@ -1,0 +1,34 @@
+{
+  "name": "typedproxy",
+  "version": "1.0.0",
+  "description": "Checkout type of parameters of Class methods and properties by using es6 Proxy",
+  "main": "typed.js",
+  "directories": {
+    "test": "test"
+  },
+  "engines": {
+    "node": ">= 6.1.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+	"mocha": "^2.4.5",
+	"should": "^8.3.1"
+  },
+  "scripts": {
+    "test": "mocha ./test/main"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/antonecma/TypedProxy.git"
+  },
+  "keywords": [
+    "types",
+    "checkout"
+  ],
+  "author": "Anton L. <anton.ecma@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/antonecma/TypedProxy/issues"
+  },
+  "homepage": "https://github.com/antonecma/TypedProxy#readme"
+}
