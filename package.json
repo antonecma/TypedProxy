@@ -1,6 +1,6 @@
 {
   "name": "typedproxy",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Checkout type of parameters of Class methods and properties by using es6 Proxy",
   "main": "typed.js",
   "directories": {
@@ -11,8 +11,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-	"mocha": "^2.4.5",
-	"should": "^8.3.1"
+    "mocha": "^2.4.5",
+    "should": "^8.3.1"
   },
   "scripts": {
     "test": "mocha ./test/main"
