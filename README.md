@@ -13,6 +13,9 @@ class TestClass {
     constructor(strName){
         this.soname = strName;
     }
+    static staticMethod(strSomeStaticString) {
+        return strSomeStaticString;
+    }
     calcSomething(uIntSomeValue){
         return uIntSomeValue;
     }
@@ -59,5 +62,40 @@ const types = {
 };
 ```
 
+- 
+
+> Create new **typed** class based on your class and types object that you have described above. : 
+```javascript
+const TypedTestClass = new Typed(TestClass, types);
+```
+
+- 
+
+> The **TypedTestClass** is typed version of **TestClass** now and you can invoke static methods (including setter of properties and constructor) of him. If parameters passed into methods are not valid, it will throw an *TypeError* (based on types object). If number of parameters passed into methods is not correct, it will throw an *RangeError* (by default): 
+```javascript
+TypedTestClass.staticMethod('string'); //ok
+```
+```javascript
+TypedTestClass.staticMethod(1); //throw TypeError
+```
+```javascript
+TypedTestClass.staticMethod('string', 'string'); //throw RangeError
+```
+
+- 
+
+> Create new **typed** instances, which represents *TestClass* instance with *typed* feature: 
+```javascript
+const typedInstance = new TypedTestClass('string');
+typedInstance.calcSomething(1); //ok
+```
+
+> but
+```javascript
+typedInstance.calcSomething('string'); //throw TypeError
+```
+```javascript
+typedInstance.calcSomething(1, 2); //throw RangeError
+```
 
 ## <a name="typedtypes">Types</a>
