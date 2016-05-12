@@ -1,6 +1,6 @@
 {
   "name": "typedproxy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A module checks out type of methods parameters and properties of Class by using es6 Proxy",
   "main": "typed.js",
   "directories": {
