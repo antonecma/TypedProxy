@@ -4,6 +4,18 @@ A module checks out type of methods parameters and properties of Class by using 
 ```
 npm i typedproxy
 ```
+##Example
+```javascript
+const Typed = require('typedproxy');
+//MyClass declaration
+const TypedMyClass = new Typed(MyClass, { 'nonZeroType' : (value) => { 
+        if (value === 0 ) throw new TypeError('nonZeroTypeError');
+    }
+});
+const typedInstance = new TypedMyClass();
+typedInstance.nonZeroMethod(1);//ok
+typedInstance.nonZeroMethod(0);//throw TypeError
+```
 
 ##Usage
 Suppose you have a es-6 class named *TestClass*, which contains constructor, some static methods 
@@ -99,3 +111,20 @@ typedInstance.calcSomething(1, 2); //throw RangeError
 ```
 
 ## <a name="typedtypes">Types</a>
+All types that you are planning to use in your application are described by **types object**. This is simple object wich contains type names and their *check out functions*. The first characters of the parameters used in your class methods, must match with the names of types. For example :
+> if you want to use your **equalOneType** than typed object may be looks like :
+```javascript
+typed = {
+    'equalOneType' : (value) => {
+        if(value !== 1) {
+            throw new TypeError(`equalOneType param must be equal 1, not ${value}`); 
+        }
+    }
+};
+```
+and method must be looks like :
+```javascript
+someMethod(equalOneTypeParam){
+    this.count+=equalOneTypeParam;
+}
+```
